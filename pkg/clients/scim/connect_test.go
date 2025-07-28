@@ -1,14 +1,14 @@
 package scim_test
 
 import (
-	"crypto/tls"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	tlsconfig "github.com/PowerDNS/go-tlsconfig"
 	"github.com/stretchr/testify/assert"
 
-	"github.tools.sap/kms/cmk/internal/clients/scim"
+	"github.com/openkcm/identity-management-plugins/pkg/clients/scim"
 )
 
 const (
@@ -94,9 +94,6 @@ var (
 )
 
 func TestNewClient(t *testing.T) {
-	tlsConfig := tls.Config{
-		MinVersion: tls.VersionTLS12,
-	}
 	tests := []struct {
 		name          string
 		params        scim.APIParams
@@ -106,7 +103,8 @@ func TestNewClient(t *testing.T) {
 		{
 			name: "Missing Client ID",
 			params: scim.APIParams{
-				Host: "https://example.com",
+				Host:      "https://example.com",
+				TLSConfig: &tlsconfig.Config{},
 			},
 			expectError:   true,
 			errorContains: "client ID is required",
@@ -117,6 +115,7 @@ func TestNewClient(t *testing.T) {
 				Host:         "https://example.com",
 				ClientID:     "test-client",
 				ClientSecret: "unreal",
+				TLSConfig:    &tlsconfig.Config{},
 			},
 			expectError: false,
 		},
@@ -125,7 +124,7 @@ func TestNewClient(t *testing.T) {
 			params: scim.APIParams{
 				Host:      "https://example.com",
 				ClientID:  "test-client",
-				TLSConfig: &tlsConfig,
+				TLSConfig: &tlsconfig.Config{},
 			},
 			expectError: false,
 		},
@@ -141,16 +140,18 @@ func TestNewClient(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		client, err := scim.NewClient(tt.params)
+		t.Run(tt.name, func(t *testing.T) {
+			client, err := scim.NewClient(t.Context(), tt.params)
 
-		if tt.expectError {
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), tt.errorContains)
-			assert.Nil(t, client)
-		} else {
-			assert.NoError(t, err)
-			assert.NotNil(t, client)
-		}
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errorContains)
+				assert.Nil(t, client)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, client)
+			}
+		})
 	}
 }
 
@@ -201,10 +202,11 @@ func TestAPIClient_GetUser(t *testing.T) {
 			}))
 			defer server.Close()
 
-			client, _ := scim.NewClient(scim.APIParams{
+			client, _ := scim.NewClient(t.Context(), scim.APIParams{
 				Host:         server.URL,
 				ClientID:     "test-client",
 				ClientSecret: "unreal",
+				TLSConfig:    &tlsconfig.Config{},
 			})
 
 			user, err := client.GetUser(t.Context(), tt.userID)
@@ -265,10 +267,11 @@ func TestAPIClient_ListUsers(t *testing.T) {
 			}))
 			defer server.Close()
 
-			client, _ := scim.NewClient(scim.APIParams{
+			client, _ := scim.NewClient(t.Context(), scim.APIParams{
 				Host:         server.URL,
 				ClientID:     "test-client",
 				ClientSecret: "unreal",
+				TLSConfig:    &tlsconfig.Config{},
 			})
 
 			users, err := client.ListUsers(t.Context(), tt.useHTTPPost, nil, nil, nil)
@@ -332,10 +335,11 @@ func TestAPIClient_GetGroup(t *testing.T) {
 			}))
 			defer server.Close()
 
-			client, _ := scim.NewClient(scim.APIParams{
+			client, _ := scim.NewClient(t.Context(), scim.APIParams{
 				Host:         server.URL,
 				ClientID:     "test-client",
 				ClientSecret: "unreal",
+				TLSConfig:    &tlsconfig.Config{},
 			})
 
 			group, err := client.GetGroup(t.Context(), tt.groupID)
@@ -396,10 +400,11 @@ func TestAPIClient_ListGroups(t *testing.T) {
 			}))
 			defer server.Close()
 
-			client, _ := scim.NewClient(scim.APIParams{
+			client, _ := scim.NewClient(t.Context(), scim.APIParams{
 				Host:         server.URL,
 				ClientID:     "test-client",
 				ClientSecret: "unreal",
+				TLSConfig:    &tlsconfig.Config{},
 			})
 
 			groups, err := client.ListGroups(t.Context(), tt.useHTTPPost, nil, nil, nil)

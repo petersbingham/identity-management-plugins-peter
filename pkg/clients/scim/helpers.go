@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.tools.sap/kms/cmk/utils/ptr"
+	"github.com/openkcm/identity-management-plugins/pkg/utils/ptr"
 )
 
 func setSCIMHeaders(req *http.Request) {
@@ -20,14 +20,14 @@ func setSCIMHeaders(req *http.Request) {
 	req.Header.Set("Accept", ApplicationSCIMJson)
 }
 
-func buildBodyFromParams(filter *FilterExpression, count *int, cursor *string) (io.Reader, error) {
+func buildBodyFromParams(filter FilterExpression, count *int, cursor *string) (io.Reader, error) {
 	searchRequest := SearchRequest{
 		Schemas: []string{SearchRequestSchema},
 		Count:   count,
 		Cursor:  cursor,
 	}
-	if filter != nil && (*filter != NullFilterExpression{}) {
-		searchRequest.Filter = ptr.PointTo((*filter).ToString())
+	if filter != nil && (filter != NullFilterExpression{}) {
+		searchRequest.Filter = ptr.PointTo((filter).ToString())
 	}
 
 	jsonBody, err := json.Marshal(searchRequest)
@@ -38,7 +38,7 @@ func buildBodyFromParams(filter *FilterExpression, count *int, cursor *string) (
 	return bytes.NewReader(jsonBody), nil
 }
 
-func buildQueryStringFromParams(filter *FilterExpression, cursor *string, count *int) string {
+func buildQueryStringFromParams(filter FilterExpression, cursor *string, count *int) string {
 	query := url.Values{}
 	if cursor != nil {
 		query.Add("cursor", *cursor)
@@ -48,8 +48,8 @@ func buildQueryStringFromParams(filter *FilterExpression, cursor *string, count 
 		query.Add("count", strconv.Itoa(*count))
 	}
 
-	if (filter != nil) && (*filter != NullFilterExpression{}) {
-		query.Add("filter", (*filter).ToString())
+	if (filter != nil) && (filter != NullFilterExpression{}) {
+		query.Add("filter", (filter).ToString())
 	}
 
 	return query.Encode()
@@ -57,7 +57,7 @@ func buildQueryStringFromParams(filter *FilterExpression, cursor *string, count 
 
 func buildQueryStringAndBody(
 	useHTTPPost bool,
-	filter *FilterExpression,
+	filter FilterExpression,
 	cursor *string,
 	count *int,
 ) (*io.Reader, *string, error) {

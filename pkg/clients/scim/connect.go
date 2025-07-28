@@ -2,15 +2,15 @@ package scim
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 
-	"github.tools.sap/kms/cmk/internal/errs"
-	"github.tools.sap/kms/cmk/utils/httpclient"
+	tlsconfig "github.com/PowerDNS/go-tlsconfig"
+	errs "github.com/openkcm/identity-management-plugins/pkg/utils/errs"
+	"github.com/openkcm/identity-management-plugins/pkg/utils/httpclient"
 )
 
 const (
@@ -35,10 +35,10 @@ var (
 // APIParams contains the parameters needed to create a new API client
 // supporting client authentication via client secret or mTLS.
 type APIParams struct {
-	Host         string
-	ClientID     string
-	ClientSecret string
-	TLSConfig    *tls.Config
+	Host         string            `yaml:"host"`
+	ClientID     string            `yaml:"clientid"`
+	ClientSecret string            `yaml:"clientsecret"`
+	TLSConfig    *tlsconfig.Config `yaml:"tlsconfig"`
 }
 
 type APIClient struct {
@@ -46,7 +46,7 @@ type APIClient struct {
 	Params     APIParams
 }
 
-func NewClient(params APIParams) (*APIClient, error) {
+func NewClient(ctx context.Context, params APIParams) (*APIClient, error) {
 	if params.ClientID == "" {
 		return nil, ErrClientIDMissing
 	}
@@ -56,10 +56,17 @@ func NewClient(params APIParams) (*APIClient, error) {
 		return nil, ErrAuthParams
 	}
 
+	mang, _ := tlsconfig.NewManager(ctx, *params.TLSConfig,
+		tlsconfig.Options{
+			IsServer:          false,
+			IsClient:          true,
+			RequireClientCert: false,
+		})
+	cfg, _ := mang.TLSConfig()
 	return &APIClient{
 		httpClient: http.Client{
 			Transport: &http.Transport{
-				TLSClientConfig: params.TLSConfig,
+				TLSClientConfig: cfg,
 			},
 		},
 		Params: params,
@@ -98,7 +105,7 @@ func (c *APIClient) GetUser(ctx context.Context, id string) (*User, error) {
 func (c *APIClient) ListUsers(
 	ctx context.Context,
 	useHTTPPost bool,
-	filter *FilterExpression,
+	filter FilterExpression,
 	cursor *string,
 	count *int,
 ) (*UserList, error) {
@@ -156,7 +163,7 @@ func (c *APIClient) GetGroup(ctx context.Context, id string) (*Group, error) {
 func (c *APIClient) ListGroups(
 	ctx context.Context,
 	useHTTPPost bool,
-	filter *FilterExpression,
+	filter FilterExpression,
 	cursor *string,
 	count *int,
 ) (*GroupList, error) {
@@ -236,7 +243,7 @@ func (c *APIClient) makeListRequest(
 	ctx context.Context,
 	useHTTPPost bool,
 	basePath string,
-	filter *FilterExpression,
+	filter FilterExpression,
 	cursor *string,
 	count *int,
 ) (*http.Response, error) {
